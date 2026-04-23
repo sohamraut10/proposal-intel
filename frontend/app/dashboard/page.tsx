@@ -21,7 +21,13 @@ export default function DashboardPage() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selected, setSelected] = useState<Job | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState<Record<string, unknown> | null>(null);
+  const [generated, setGenerated] = useState<{
+    win_probability?: number;
+    quality_score?: number;
+    bid_amount?: number;
+    cover_letter?: string;
+    proposal_text?: string;
+  } | null>(null);
   const [strategy, setStrategy] = useState("standard");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -199,8 +205,8 @@ export default function DashboardPage() {
                     {/* Metrics */}
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       {[
-                        { label: "Win %", value: `${Math.round(((generated.win_probability as number) ?? 0) * 100)}%` },
-                        { label: "Quality", value: `${generated.quality_score ?? "—"}/100` },
+                        { label: "Win %", value: `${Math.round((generated.win_probability ?? 0) * 100)}%` },
+                        { label: "Quality", value: generated.quality_score ? `${generated.quality_score}/100` : "—" },
                         { label: "Bid", value: generated.bid_amount ? `$${generated.bid_amount}` : "—" },
                       ].map(({ label, value }) => (
                         <div key={label} className="rounded-lg p-2 text-center border"
