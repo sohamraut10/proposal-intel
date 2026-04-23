@@ -191,7 +191,7 @@ export default function DashboardPage() {
                   className="w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
                   style={{ background: "var(--color-indigo)", color: "white" }}
                 >
-                  {generating ? "Generating…" : "Generate with Claude"}
+                  {generating ? "Generating…" : "Generate with GPT-4o"}
                 </button>
 
                 {generated && (

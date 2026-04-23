@@ -26,12 +26,12 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_CLIENT_ID: str = ""
     GOOGLE_OAUTH_CLIENT_SECRET: str = ""
 
-    # Claude / Anthropic
-    ANTHROPIC_API_KEY: str = ""
-    PROPOSAL_MODEL: str = "claude-sonnet-4-6"
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+    PROPOSAL_MODEL: str = "gpt-4o"
     PROPOSAL_MAX_TOKENS: int = 500
     PROPOSAL_TEMPERATURE: float = 0.7
-    ANTHROPIC_API_RATE_LIMIT: int = 30  # req/min
+    OPENAI_API_RATE_LIMIT: int = 60  # req/min
 
     # Upwork
     UPWORK_API_KEY: str = ""

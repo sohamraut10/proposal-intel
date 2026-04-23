@@ -1,4 +1,4 @@
-"""Claude API proposal generation — strategies, bid calculation, win probability."""
+"""OpenAI proposal generation — strategies, bid calculation, win probability."""
 from __future__ import annotations
 
 import asyncio
@@ -7,14 +7,14 @@ import logging
 import re
 from typing import Any
 
-import anthropic
+from openai import AsyncOpenAI
 
 from config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
-client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 SYSTEM_PROMPT = """You are {name}, a skilled freelancer with expertise in {skills}.
 Your task is to write conversion-optimized proposals that:
@@ -89,23 +89,27 @@ class ProposalGenerator:
         strategy: str = "standard",
     ) -> dict[str, Any]:
         strategy = strategy if strategy in STRATEGY_MODIFIERS else "standard"
-        system = SYSTEM_PROMPT.format(
+        system_content = SYSTEM_PROMPT.format(
             name=freelancer_profile.get("name") or freelancer_profile.get("full_name") or "Freelancer",
             skills=_format_skills(freelancer_profile),
             strategy_modifier=STRATEGY_MODIFIERS[strategy],
         )
         user_content = self._build_user_prompt(job, freelancer_profile)
 
-        message = await client.messages.create(
+        response = await client.chat.completions.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": user_content}],
+            temperature=self.temperature,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": user_content},
+            ],
         )
 
-        raw = message.content[0].text
+        raw = response.choices[0].message.content or ""
         parsed = self._parse_proposal(raw)
-        tokens = message.usage.input_tokens + message.usage.output_tokens
+        tokens = response.usage.total_tokens if response.usage else 0
 
         bid_amount = self._calculate_bid(job, freelancer_profile, strategy)
         win_probability = self._estimate_win_probability(job, freelancer_profile)
@@ -126,7 +130,7 @@ class ProposalGenerator:
             "quality_score": quality_score,
             "win_probability": win_probability,
             "estimated_response_time": "10-15 min",
-            "model_used": message.model,
+            "model_used": response.model,
             "tokens_used": tokens,
         }
 
@@ -138,7 +142,7 @@ class ProposalGenerator:
         strategy: str = "standard",
     ) -> list[dict[str, Any]]:
         jobs = jobs[:max_proposals]
-        semaphore = asyncio.Semaphore(3)  # max 3 concurrent to respect rate limits
+        semaphore = asyncio.Semaphore(3)
 
         async def _generate(job: dict[str, Any]) -> dict[str, Any] | None:
             async with semaphore:
@@ -186,12 +190,10 @@ class ProposalGenerator:
 
     @staticmethod
     def _parse_proposal(raw: str) -> dict[str, Any]:
-        # Strip markdown code fences if present
         cleaned = re.sub(r"```(?:json)?\s*|\s*```", "", raw).strip()
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            # Best-effort: extract proposal text as-is
             return {"proposal": raw, "cover_letter": None, "approach": None, "strengths": []}
 
     @staticmethod
@@ -209,10 +211,7 @@ class ProposalGenerator:
         if not market_mid:
             return None
 
-        if hourly_rate and estimated_hours:
-            cost = hourly_rate * estimated_hours
-        else:
-            cost = market_mid
+        cost = hourly_rate * estimated_hours if (hourly_rate and estimated_hours) else market_mid
 
         if strategy == "aggressive":
             bid = min(cost * 0.9, market_mid)
@@ -221,26 +220,22 @@ class ProposalGenerator:
         else:
             bid = max(bmin, min(cost, market_mid))
 
-        # Round to nearest $5
         return round(bid / 5) * 5
 
     @staticmethod
     def _estimate_win_probability(job: dict[str, Any], profile: dict[str, Any]) -> float:
         prob = 0.50
 
-        # Budget fit
         bmin = job.get("budget_min") or 0
         bmax = job.get("budget_max") or bmin
         hourly = profile.get("hourly_rate") or 0
         if hourly and bmin <= hourly <= bmax:
             prob += 0.15
 
-        # Client rating
         rating = job.get("client_rating")
         if rating and rating >= 4.5:
             prob += 0.10
 
-        # Freshness
         posted_at = job.get("posted_at")
         if posted_at:
             from datetime import datetime, timezone
@@ -270,8 +265,7 @@ class ProposalGenerator:
             score += 10
         if parsed.get("approach"):
             score += 10
-        strengths = parsed.get("strengths") or []
-        if len(strengths) >= 2:
+        if len(parsed.get("strengths") or []) >= 2:
             score += 5
         return min(score, 100)
 
@@ -283,7 +277,6 @@ def _format_skills(profile: dict[str, Any]) -> str:
     return str(skills or "N/A")
 
 
-# Module-level singleton
 _generator = ProposalGenerator()
 
 
