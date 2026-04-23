@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
-from api import auth, users, jobs, proposals, analytics
+from api import auth, users, jobs, proposals, analytics, profiles
 
 settings = get_settings()
 logging.basicConfig(level=settings.LOG_LEVEL)
@@ -22,12 +22,12 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         poll_all_platforms,
         "interval",
-        seconds=settings.JOB_POLL_INTERVAL_SECONDS,
+        seconds=settings.AGGREGATION_INTERVAL_SECONDS,
         id="poll_platforms",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("Scheduler started — polling every %ds", settings.JOB_POLL_INTERVAL_SECONDS)
+    logger.info("Scheduler started — polling every %ds", settings.AGGREGATION_INTERVAL_SECONDS)
 
     yield
 
@@ -54,6 +54,7 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(jobs.router, prefix="/api/v1")
 app.include_router(proposals.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
+app.include_router(profiles.router, prefix="/api/v1")
 
 
 @app.get("/health")
