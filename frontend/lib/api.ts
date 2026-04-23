@@ -37,7 +37,7 @@ export const api = {
   getMe: () => request<Record<string, unknown>>("/users/me"),
   updateMe: (data: Record<string, unknown>) =>
     request<Record<string, unknown>>("/users/me", {
-      method: "PATCH",
+      method: "PUT",
       body: JSON.stringify(data),
     }),
 

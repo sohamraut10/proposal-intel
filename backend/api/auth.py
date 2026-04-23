@@ -26,7 +26,7 @@ class TokenResponse(BaseModel):
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
-    full_name: str | None = None
+    name: str | None = None
 
 
 def _hash_password(password: str) -> str:
@@ -78,7 +78,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     user = User(
         email=body.email,
         hashed_password=_hash_password(body.password),
-        full_name=body.full_name,
+        name=body.name,
     )
     db.add(user)
     await db.flush()
