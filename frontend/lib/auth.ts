@@ -1,0 +1,23 @@
+"use client";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem("token", token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem("token");
+}
+
+export function isAuthenticated(): boolean {
+  return !!getToken();
+}
+
+export function logout(): void {
+  clearToken();
+  window.location.href = "/auth/login";
+}
